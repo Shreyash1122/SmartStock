@@ -1,253 +1,28 @@
-import { useMemo, useState } from "react";
-import { analyzeNews } from "./api";
+import { useState } from "react";
 
-const scoreColor = (score) => {
-  if (score >= 75) return "text-emerald-300";
-  if (score >= 45) return "text-amber-300";
-  return "text-rose-300";
-};
+const products = [
+  ["Dell Inspiron 15", "LAP-DELL-001", "Mumbai", 35, 20, "blue"], ["Logitech MX Keys", "KEY-LOG-014", "Pune", 4, 15, "orange"],
+  ["HP 27f Monitor", "MON-HP-002", "Delhi", 14, 12, "purple"], ["Apple Magic Mouse", "MOU-APP-006", "Bangalore", 7, 20, "pink"]
+];
+const nav = [["Overview","Dashboard","⌘"],["Catalog","Products","▦"],["Catalog","Categories","◫"],["Operations","Inventory","▤"],["Operations","Stock transfers","⇄"],["Operations","Purchase orders","▧"],["Sales","Customer orders","□"],["Sales","Shipments","⌁"],["Partners","Warehouses","⌂"],["Partners","Suppliers","♙"],["Insights","Reports","◔"]];
+const Badge=({children,tone="muted"})=><span className={`badge ${tone}`}>{children}</span>;
 
-const verdictStyles = {
-  Verified: "bg-emerald-500/20 text-emerald-200 border-emerald-400/40",
-  "Possibly True": "bg-amber-500/20 text-amber-200 border-amber-400/40",
-  "Likely Fake": "bg-rose-500/20 text-rose-200 border-rose-400/40"
-};
+function Chart(){return <div className="chart-wrap"><div className="y"><span>₹8L</span><span>₹6L</span><span>₹4L</span><span>₹2L</span><span>₹0</span></div><div className="chart"><i/><i/><i/><i/><svg viewBox="0 0 630 145" preserveAspectRatio="none"><defs><linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop stopColor="#5b4bd8" stopOpacity=".24"/><stop offset="1" stopColor="#5b4bd8" stopOpacity="0"/></linearGradient></defs><path d="M0 125 L58 115 L115 101 L173 109 L230 77 L288 91 L345 53 L403 65 L460 24 L518 44 L575 12 L630 29 L630 145 L0 145Z" fill="url(#area)"/><polyline points="0,125 58,115 115,101 173,109 230,77 288,91 345,53 403,65 460,24 518,44 575,12 630,29" fill="none" stroke="#5b4bd8" strokeWidth="3"/></svg><div className="months">{["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map(x=><span key={x}>{x}</span>)}</div></div></div>}
 
-function ScoreRow({ label, value }) {
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between text-sm text-slate-300">
-        <span>{label}</span>
-        <span className={scoreColor(value)}>{value}/100</span>
-      </div>
-      <div className="h-2 rounded-full bg-slate-800">
-        <div
-          className="h-2 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500"
-          style={{ width: `${value}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function SourceList({ title, items, accent }) {
-  return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-      <h4 className={`mb-3 text-sm font-semibold ${accent}`}>{title}</h4>
-      {items.length === 0 ? (
-        <p className="text-sm text-slate-400">No results found.</p>
-      ) : (
-        <ul className="space-y-3">
-          {items.map((item) => (
-            <li key={item.url} className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
-              <a className="font-medium text-cyan-300 hover:underline" href={item.url} target="_blank" rel="noreferrer">
-                {item.title}
-              </a>
-              <p className="mt-1 text-xs text-slate-400">
-                {item.source} {item.publishedAt ? `| ${new Date(item.publishedAt).toLocaleDateString()}` : ""}
-              </p>
-              <p className="mt-2 text-sm text-slate-300">{item.reason || item.snippet}</p>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-function AnalysisCard({ result }) {
-  const analysis = result.analysis;
-  const verification = result.verification;
-  const style = verdictStyles[analysis.verdict] || verdictStyles["Possibly True"];
-
-  return (
-    <div className="space-y-5 rounded-3xl border border-slate-700/70 bg-slate-900/80 p-6 shadow-soft backdrop-blur">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className={`rounded-full border px-3 py-1 text-sm font-semibold ${style}`}>{analysis.verdict}</div>
-        <p className="text-2xl font-bold tracking-tight text-white">Credibility Score: {analysis.credibilityScore}/100</p>
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-3">
-        <ScoreRow label="Language Authenticity" value={analysis.breakdown.languageAuthenticity} />
-        <ScoreRow label="Source Reliability" value={analysis.breakdown.sourceReliability} />
-        <ScoreRow label="Fact Consistency" value={analysis.breakdown.factConsistency} />
-      </div>
-
-      <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-        <h3 className="mb-2 text-sm uppercase tracking-wide text-slate-400">Explainable AI Summary</h3>
-        <p className="text-slate-200">{analysis.explanation}</p>
-      </div>
-
-      <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-        <h3 className="mb-2 text-sm uppercase tracking-wide text-slate-400">Detected Signals</h3>
-        <p className="text-sm text-slate-300">
-          Clickbait Risk: <span className="font-semibold text-slate-100">{analysis.signals.clickbaitRisk}</span> | Bias:
-          <span className="font-semibold text-slate-100"> {analysis.signals.biasLevel}</span> | Logical Consistency:
-          <span className="font-semibold text-slate-100"> {analysis.signals.logicalConsistency}</span>
-        </p>
-      </div>
-
-      <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-        <h3 className="mb-2 text-sm uppercase tracking-wide text-slate-400">Key Claims Extracted</h3>
-        {analysis.keyClaims.length === 0 ? (
-          <p className="text-sm text-slate-400">No clear fact claims extracted.</p>
-        ) : (
-          <ul className="list-disc space-y-1 pl-5 text-slate-200">
-            {analysis.keyClaims.map((claim) => (
-              <li key={claim}>{claim}</li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {verification.note ? <p className="text-sm text-amber-200">{verification.note}</p> : null}
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <SourceList title="Supporting Articles" items={verification.supportingArticles || []} accent="text-emerald-300" />
-        <SourceList title="Contradicting Articles" items={verification.contradictingArticles || []} accent="text-rose-300" />
-      </div>
-    </div>
-  );
-}
-
-export default function App() {
-  const [newsText, setNewsText] = useState("");
-  const [newsUrl, setNewsUrl] = useState("");
-  const [imageDataUrl, setImageDataUrl] = useState("");
-  const [uploadedFileName, setUploadedFileName] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [history, setHistory] = useState([]);
-
-  const latest = useMemo(() => history[0] || null, [history]);
-
-  async function handleImageUpload(event) {
-    const file = event.target.files?.[0];
-    if (!file) {
-      setImageDataUrl("");
-      setUploadedFileName("");
-      return;
-    }
-
-    setUploadedFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = () => setImageDataUrl(String(reader.result || ""));
-    reader.readAsDataURL(file);
-  }
-
-  async function handleAnalyze(event) {
-    event.preventDefault();
-
-    if (!newsText.trim() && !newsUrl.trim() && !imageDataUrl.trim()) {
-      setError("Paste news text, provide a URL, or upload a screenshot.");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
-    try {
-      const result = await analyzeNews({
-        text: newsText.trim(),
-        url: newsUrl.trim(),
-        imageDataUrl: imageDataUrl.trim()
-      });
-
-      setHistory((current) => [
-        {
-          id: Date.now(),
-          input: {
-            text: newsText.trim(),
-            url: newsUrl.trim(),
-            imageName: uploadedFileName
-          },
-          result
-        },
-        ...current
-      ]);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <main className="mx-auto min-h-screen max-w-6xl px-4 py-10 text-slate-100 md:px-8">
-      <header className="mb-8 space-y-3 text-center">
-        <p className="inline-flex items-center rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1 text-xs font-semibold tracking-wide text-cyan-200">
-          AI Fake News Detector
-        </p>
-        <h1 className="text-3xl font-black tracking-tight text-white md:text-5xl">Credibility Checker Chatbot</h1>
-        <p className="mx-auto max-w-2xl text-slate-300">
-          Paste a headline/article, add a URL, or upload a screenshot. We analyze language, score credibility, and
-          cross-check with external sources.
-        </p>
-      </header>
-
-      <section className="grid gap-6 lg:grid-cols-[1.1fr_1.4fr]">
-        <form onSubmit={handleAnalyze} className="space-y-4 rounded-3xl border border-slate-700/60 bg-slate-900/80 p-6 shadow-soft backdrop-blur">
-          <label className="block space-y-2">
-            <span className="text-sm font-semibold text-slate-200">News Text / Headline</span>
-            <textarea
-              className="h-40 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-400"
-              placeholder="Paste the article content or headline here..."
-              value={newsText}
-              onChange={(event) => setNewsText(event.target.value)}
-            />
-          </label>
-
-          <label className="block space-y-2">
-            <span className="text-sm font-semibold text-slate-200">Article URL (optional)</span>
-            <input
-              type="url"
-              value={newsUrl}
-              onChange={(event) => setNewsUrl(event.target.value)}
-              placeholder="https://example.com/news"
-              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 outline-none transition focus:border-cyan-400"
-            />
-          </label>
-
-          <label className="block space-y-2">
-            <span className="text-sm font-semibold text-slate-200">Upload Screenshot (bonus)</span>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              className="w-full rounded-xl border border-dashed border-slate-600 bg-slate-950 px-4 py-2 text-sm text-slate-200 file:mr-3 file:rounded-lg file:border-0 file:bg-cyan-500/20 file:px-3 file:py-1.5 file:text-cyan-100"
-            />
-            {uploadedFileName ? <p className="text-xs text-slate-400">Attached: {uploadedFileName}</p> : null}
-          </label>
-
-          {error ? <p className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">{error}</p> : null}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loading ? "Analyzing..." : "Analyze Credibility"}
-          </button>
-        </form>
-
-        <section className="space-y-4">
-          {latest ? (
-            <>
-              <div className="rounded-2xl border border-slate-700/60 bg-slate-900/70 p-4 text-sm text-slate-300">
-                <p className="font-semibold text-slate-200">Latest Input</p>
-                {latest.input.text ? <p className="mt-2 text-slate-300">{latest.input.text}</p> : null}
-                {latest.input.url ? <p className="mt-2 text-cyan-300">URL: {latest.input.url}</p> : null}
-                {latest.input.imageName ? <p className="mt-2 text-slate-400">Screenshot: {latest.input.imageName}</p> : null}
-              </div>
-              <AnalysisCard result={latest.result} />
-            </>
-          ) : (
-            <div className="rounded-3xl border border-dashed border-slate-700 bg-slate-900/50 p-10 text-center text-slate-400">
-              Your credibility report will appear here after the first analysis.
-            </div>
-          )}
-        </section>
-      </section>
-    </main>
-  );
+export default function App(){
+ const [page,setPage]=useState("Dashboard"),[modal,setModal]=useState(""),[query,setQuery]=useState(""),[notice,setNotice]=useState(""),[transfer,setTransfer]=useState({from:"Mumbai",to:"Pune",qty:10});
+ const toast=x=>{setNotice(x);setTimeout(()=>setNotice(""),2500)};
+ const submit=e=>{e.preventDefault();setModal("");toast(modal==="transfer"?`${transfer.qty} Dell Inspiron 15 units requested for transfer.`:"Stock receipt saved successfully.")};
+ const filtered=products.filter(p=>p[0].toLowerCase().includes(query.toLowerCase()));
+ return <div className="app">
+  <aside><div className="brand"><b><i/><i/><i/></b>smartstock</div><div className="workspace"><strong>N</strong><span><b>Northstar Retail</b><small>Enterprise plan</small></span><em>⌄</em></div><nav>{nav.map(([group,name,icon],i)=><div key={name}>{(i===0||nav[i-1][0]!==group)&&<label>{group}</label>}<button className={page===name?"active":""} onClick={()=>setPage(name)}><i>{icon}</i><span>{name}</span>{name==="Stock transfers"&&<em>2</em>}</button></div>)}</nav><div className="profile"><div>AS</div><span><b>Aisha Sharma</b><small>Operations manager</small></span></div></aside>
+  <main><header><div className="crumb">Operations　/　<b>{page}</b></div><div><button className="round">⌕</button><button className="round">♧<i/></button><button className="date">▣　01 Sep — 30 Sep 2026　⌄</button></div></header>
+   <section className="title"><div><h1>{page}</h1><p>{page==="Dashboard"?"Here’s what’s happening across your operations today.":`Manage and monitor your ${page.toLowerCase()} from one place.`}</p></div>{page==="Dashboard"?<div className="actions"><button onClick={()=>setModal("stock")}>＋ Add stock</button><button className="primary" onClick={()=>setModal("transfer")}>⇄ New transfer</button></div>:<button className="primary">＋ Create new</button>}</section>
+   {page!=="Dashboard"?<section className="empty"><div>{nav.find(x=>x[1]===page)?.[2]}</div><h2>{page}</h2><p>This module is ready to connect to your Spring Boot REST API. Return to the dashboard to explore the inventory workflow.</p><button className="primary" onClick={()=>setPage("Dashboard")}>Back to dashboard</button></section>:<>
+   <section className="metrics">{[["▦","Total products","1,250","↗ 12.5%","indigo"],["⌂","Warehouses","4","—","violet"],["♙","Active suppliers","82","↗ 4.3%","amber"],["▤","Low stock items","31","↘ 8.2%","rose"]].map(x=><article key={x[1]}><div><i className={x[4]}>{x[0]}</i><span className={x[3].includes("↘")?"down":"up"}>{x[3]}</span></div><small>{x[1]}</small><strong>{x[2]}</strong><p>{x[1]==="Low stock items"?"Requires attention":"vs. last month"}</p></article>)}</section>
+   <section className="grid upper"><article className="panel sales"><div className="paneltop"><div><h2>Sales overview</h2><p>Revenue across all warehouses</p></div><button>Monthly　⌄</button></div><div className="value">₹6,84,200 <span>↗ 18.4%</span><small>vs. previous period</small></div><Chart/></article><article className="panel health"><div className="paneltop"><div><h2>Stock health</h2><p>Across all locations</p></div><b>•••</b></div><div className="health-body"><div className="donut"><div><strong>45,230</strong><small>total units</small></div></div><div className="legend"><p><i/>Healthy <b>38,642</b><small>85.4%</small></p><p><i/>Low stock <b>4,890</b><small>10.8%</small></p><p><i/>Out of stock <b>1,698</b><small>3.8%</small></p></div></div><button className="link" onClick={()=>setPage("Inventory")}>View inventory　→</button></article></section>
+   <section className="grid lower"><article className="panel lowstock"><div className="paneltop"><div><h2>Low stock products <Badge tone="warning">31 items</Badge></h2><p>Products below their reorder level</p></div><button className="link">View all　→</button></div><div className="table"><div className="thead"><span>PRODUCT</span><span>WAREHOUSE</span><span>AVAILABLE</span><span>REORDER LEVEL</span></div>{products.map(p=><div className="row" key={p[1]}><span className="prod"><i className={p[5]}>◈</i><b>{p[0]}<small>{p[1]}</small></b></span><span>{p[2]}</span><span className={p[3]<10?"low":""}>{p[3]} <small>+ 2 reserved</small></span><span>{p[4]}</span></div>)}</div></article><div className="right"><article className="panel activity"><div className="paneltop"><div><h2>Recent activity</h2><p>Latest inventory movements</p></div><button className="link">View all　→</button></div>{[["↓","Stock received","50 Dell Inspiron 15 received at Mumbai","in"],["⇄","Transfer dispatched","10 units sent from Mumbai to Pune","move"],["□","Order confirmed","Order #ORD-1093 reserved 3 products","order"],["!","Low stock alert","Logitech MX Keys is below reorder level","alert"]].map(r=><div className="event" key={r[1]}><i className={r[3]}>{r[0]}</i><span><b>{r[1]}</b><p>{r[2]}</p><small>Today　•　10 min ago</small></span></div>)}</article><article className="panel transfers"><div className="paneltop"><h2>Pending transfers <Badge tone="blue">2 active</Badge></h2><button className="link" onClick={()=>setModal("transfer")}>Manage　→</button></div><p><i>◈</i><span><b>Dell Inspiron 15</b><small>Mumbai → Pune　<Badge tone="blue">In transit</Badge></small></span><strong>10 <small>units</small></strong></p><p><i>◈</i><span><b>HP 27f Monitor</b><small>Delhi → Bangalore　<Badge>Requested</Badge></small></span><strong>6 <small>units</small></strong></p></article></div></section>
+   <section className="snapshot"><div className="paneltop"><div><h2>Product snapshot</h2><p>Search your active product catalog</p></div><div className="search">⌕ <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search products..."/><select><option>All warehouses</option><option>Mumbai</option><option>Pune</option></select></div></div><div className="cards">{filtered.map(p=><article key={p[1]}><i className={p[5]}>◈</i><div><Badge tone={p[3]<10?"warning":"success"}>{p[3]<10?"Low stock":"Healthy"}</Badge><h3>{p[0]}</h3><p>{p[1]} · Electronics</p><small>Available <b>{p[3]}</b>　 Reserved <b>2</b></small><span className="bar"><i style={{width:`${Math.min(100,p[3]/p[4]*40)}%`}}/></span></div></article>)}</div></section>
+   </>}
+  </main>{notice&&<div className="toast">✓　{notice}</div>}{modal&&<div className="overlay" onMouseDown={()=>setModal("")}><form className="modal" onSubmit={submit} onMouseDown={e=>e.stopPropagation()}><div><h2>{modal==="transfer"?"New stock transfer":"Receive stock"}</h2><button type="button" onClick={()=>setModal("")}>×</button></div><p>{modal==="transfer"?"Move inventory between warehouses":"Add received units to inventory"}</p><label>Product<select><option>Dell Inspiron 15</option><option>HP 27f Monitor</option></select></label>{modal==="transfer"&&<div className="formgrid"><label>From warehouse<select value={transfer.from} onChange={e=>setTransfer({...transfer,from:e.target.value})}><option>Mumbai</option><option>Pune</option><option>Delhi</option></select></label><label>To warehouse<select value={transfer.to} onChange={e=>setTransfer({...transfer,to:e.target.value})}><option>Pune</option><option>Mumbai</option><option>Bangalore</option></select></label></div>}<label>{modal==="transfer"?"Quantity":"Units received"}<input type="number" min="1" value={transfer.qty} onChange={e=>setTransfer({...transfer,qty:e.target.value})}/></label><footer><button type="button" onClick={()=>setModal("")}>Cancel</button><button className="primary">{modal==="transfer"?"Create transfer":"Receive stock"}</button></footer></form></div>}</div>
 }

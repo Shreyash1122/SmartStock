@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: smartstock-api
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/smartstock}
+server:
+  port: ${PORT:8080}
