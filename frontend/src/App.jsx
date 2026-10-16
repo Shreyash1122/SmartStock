@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const products = [
   ["Dell Inspiron 15", "LAP-DELL-001", "Mumbai", 35, 20, "blue"], ["Logitech MX Keys", "KEY-LOG-014", "Pune", 4, 15, "orange"],
@@ -12,8 +12,10 @@ function Chart(){return <div className="chart-wrap"><div className="y"><span>₹
 
 export default function App(){
  const [page,setPage]=useState("Dashboard"),[modal,setModal]=useState(""),[query,setQuery]=useState(""),[notice,setNotice]=useState(""),[transfer,setTransfer]=useState({from:"Mumbai",to:"Pune",qty:10});
+ const toastTimeout=useRef();
  useEffect(()=>{const closeOnEscape=e=>{if(e.key==="Escape")setModal("")};window.addEventListener("keydown",closeOnEscape);return()=>window.removeEventListener("keydown",closeOnEscape)},[]);
- const toast=x=>{setNotice(x);setTimeout(()=>setNotice(""),2500)};
+ useEffect(()=>()=>clearTimeout(toastTimeout.current),[]);
+ const toast=x=>{clearTimeout(toastTimeout.current);setNotice(x);toastTimeout.current=setTimeout(()=>setNotice(""),2500)};
  const submit=e=>{e.preventDefault();if(modal==="transfer"&&transfer.from===transfer.to){toast("Choose different source and destination warehouses.");return;}setModal("");toast(modal==="transfer"?`${transfer.qty} Dell Inspiron 15 units requested for transfer.`:"Stock receipt saved successfully.")};
  const filtered=products.filter(p=>p[0].toLowerCase().includes(query.toLowerCase()));
  return <div className="app">
